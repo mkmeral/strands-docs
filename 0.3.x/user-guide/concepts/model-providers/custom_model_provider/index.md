@@ -350,9 +350,6 @@ Your custom model provider needs to convert model's response events to Strands A
 To support structured output in your custom model provider, you need to implement a `structured_output()` method that invokes your model and yields a JSON output. This method leverages the unified `stream` interface with tool specifications.
 
 ```
-from typing import TypeVar, Type, Generator, Union
-from pydantic import BaseModel
-
 T = TypeVar('T', bound=BaseModel)
 
 @override

@@ -3104,10 +3104,7 @@
 </ul>
 <h3 id="4-structured-output-support">4. Structured Output Support<a class="headerlink" href="#4-structured-output-support" title="Permanent link">&para;</a></h3>
 <p>To support structured output in your custom model provider, you need to implement a <code>structured_output()</code> method that invokes your model and yields a JSON output. This method leverages the unified <code>stream</code> interface with tool specifications.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Generator</span><span class="p">,</span> <span class="n">Union</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
-
-<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">BaseModel</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">BaseModel</span><span class="p">)</span>
 
 <span class="nd">@override</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">structured_output</span><span class="p">(</span>
