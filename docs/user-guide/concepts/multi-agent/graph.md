@@ -1,12 +1,13 @@
 # Graph Multi-Agent Pattern
 
-A Graph is a deterministic Directed Acyclic Graph (DAG) based agent orchestration system where agents or other multi-agent systems (like [Swarm](./swarm.md) or nested Graphs) are nodes in a graph. Nodes are executed according to edge dependencies, with output from one node passed as input to connected nodes.
+A Graph is a deterministic directed graph-based agent orchestration system where agents or other multi-agent systems (like [Swarm](./swarm.md) or nested Graphs) are nodes in a graph. Nodes are executed according to edge dependencies, with output from one node passed as input to connected nodes.
 
-- **Deterministic execution order** based on DAG structure
+- **Deterministic execution** based on dependency resolution
 - **Output propagation** along edges between nodes
 - **Clear dependency management** between agents
 - **Supports nested patterns** (Graph as a node in another Graph)
 - **Conditional edge traversal** for dynamic workflows
+- **Support for cyclic graphs** (feedback loops)
 - **Multi-modal input support** for handling text, images, and other content types
 
 ## How Graphs Work
@@ -15,9 +16,10 @@ The Graph pattern operates on the principle of structured, deterministic workflo
 
 1. Nodes represent agents or multi-agent systems
 2. Edges define dependencies and information flow between nodes
-3. Execution follows a topological sort of the graph
+3. Execution follows dependency resolution
 4. Output from one node becomes input for dependent nodes
 5. Entry points receive the original task as input
+6. Cyclic dependencies are supported for feedback loops and iterative workflows
 
 ```mermaid
 graph TD
@@ -364,11 +366,45 @@ builder.add_edge("tech_specialist", "tech_report")
 builder.add_edge("business_specialist", "business_report")
 ```
 
+### 4. Iterative Refinement (Cyclic)
+
+```mermaid
+graph TD
+    A[Draft Creator] --> B[Reviewer]
+    B -->|Needs revision| A
+    B -->|Approved| C[Finalizer]
+```
+
+```python
+def needs_revision(state):
+    reviewer_result = state.results.get("reviewer")
+    if not reviewer_result:
+        return False
+    result_text = str(reviewer_result.result)
+    return "revision needed" in result_text.lower()
+
+def is_approved(state):
+    reviewer_result = state.results.get("reviewer")
+    if not reviewer_result:
+        return False
+    result_text = str(reviewer_result.result)
+    return "approved" in result_text.lower()
+
+builder = GraphBuilder()
+builder.add_node(draft_creator, "draft_creator")
+builder.add_node(reviewer, "reviewer")
+builder.add_node(finalizer, "finalizer")
+
+builder.add_edge("draft_creator", "reviewer")
+builder.add_edge("reviewer", "draft_creator", condition=needs_revision)  # Feedback loop
+builder.add_edge("reviewer", "finalizer", condition=is_approved)
+```
+
 ## Best Practices
 
-1. **Design for acyclicity**: Ensure your graph has no cycles
+1. **Be careful with cycles**: Consider whether your workflow needs cycles or not. IF needed, ensure you have proper termination conditions to avoid infinite loops
 2. **Use meaningful node IDs**: Choose descriptive names for nodes
-3. **Validate graph structure**: The builder will check for cycles and validate entry points
+3. **Validate graph structure**: The builder will validate entry points
 4. **Handle node failures**: Consider how failures in one node affect the overall workflow
 5. **Use conditional edges**: For dynamic workflows based on intermediate results
 6. **Consider parallelism**: Independent branches can execute concurrently
