@@ -21,7 +21,23 @@ npm init -y
 
 Learn more about the [npm init command](https://docs.npmjs.com/cli/v8/commands/npm-init) and its options.
 
-Next, install the `@strands-agents/sdk` package:
+Next, configure your project to use ES modules by adding `"type": "module"` to your `package.json`. This enables top-level `await` syntax that Strands agents use. Update your `package.json` to look like this:
+
+```json
+{
+  "name": "my-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "npx tsx src/agent.ts"
+  }
+}
+```
+
+!!! tip "Why ES modules?"
+    The `"type": "module"` setting tells Node.js to treat `.js` files as ES modules instead of CommonJS. This is required for top-level `await`, which Strands uses for cleaner async agent code. Without this setting, you'll see an error like: `Top-level await is currently not supported with the "cjs" output format`.
+
+Now install the `@strands-agents/sdk` package:
 
 ```bash
 npm install @strands-agents/sdk
