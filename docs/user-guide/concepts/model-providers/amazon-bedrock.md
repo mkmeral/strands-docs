@@ -427,7 +427,8 @@ As an alternative to providing media content as bytes, Amazon Bedrock supports r
         guardrail_redact_input=True,  # Default: True
         guardrail_redact_input_message="Blocked Input!", # Default: [User input redacted.]
         guardrail_redact_output=False,  # Default: False
-        guardrail_redact_output_message="Blocked Output!" # Default: [Assistant output redacted.]
+        guardrail_redact_output_message="Blocked Output!", # Default: [Assistant output redacted.]
+        guardrail_latest_message=True,  # Default: False - only evaluate latest user message
     )
 
     guardrail_agent = Agent(model=bedrock_model)
@@ -442,6 +443,7 @@ As an alternative to providing media content as bytes, Amazon Bedrock supports r
     - Input redaction (enabled by default): If a guardrail policy is triggered, the input is redacted
     - Output redaction (disabled by default): If a guardrail policy is triggered, the output is redacted
     - Custom redaction messages can be specified for both input and output redactions
+    - Latest message only (`guardrail_latest_message`, disabled by default): When enabled, only the latest user message is sent to guardrails for evaluation instead of the entire conversation history. This can improve performance and reduce costs for long conversations.
 
 {{ ts_not_supported_code("Guardrails are not yet supported in the TypeScript SDK") }}
 

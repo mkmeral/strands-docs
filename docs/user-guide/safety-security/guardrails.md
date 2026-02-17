@@ -22,7 +22,11 @@ Strands Agents SDK allows integration with different model providers, which impl
 
 {{ ts_not_supported() }}
 
-Amazon Bedrock provides a [built-in guardrails framework](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html) that integrates directly with Strands Agents SDK. If a guardrail is triggered, the Strands Agents SDK will automatically overwrite the user's input in the conversation history. This is done so that follow-up questions are not also blocked by the same questions. This can be configured with the `guardrail_redact_input` boolean, and the `guardrail_redact_input_message` string to change the overwrite message. Additionally, the same functionality is built for the model's output, but this is disabled by default. You can enable this with the `guardrail_redact_output` boolean, and change the overwrite message with the `guardrail_redact_output_message` string. Below is an example of how to leverage Bedrock guardrails in your code:
+Amazon Bedrock provides a [built-in guardrails framework](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html) that integrates directly with Strands Agents SDK. If a guardrail is triggered, the Strands Agents SDK will automatically overwrite the user's input in the conversation history. This is done so that follow-up questions are not also blocked by the same questions. This can be configured with the `guardrail_redact_input` boolean, and the `guardrail_redact_input_message` string to change the overwrite message. Additionally, the same functionality is built for the model's output, but this is disabled by default. You can enable this with the `guardrail_redact_output` boolean, and change the overwrite message with the `guardrail_redact_output_message` string.
+
+By default, Bedrock evaluates the entire conversation history against your guardrail policies on every turn. If you want to evaluate only the latest user message, set `guardrail_latest_message=True`. This wraps only the most recent user message content (text and images) in `guardContent` blocks, which tells Bedrock to apply guardrails to those specific blocks only. This can improve performance and reduce costs for long conversations, because previously approved messages are not re-evaluated.
+
+Below is an example of how to use Bedrock guardrails in your code:
 
 ```python
 import json
@@ -35,6 +39,7 @@ bedrock_model = BedrockModel(
     guardrail_id="your-guardrail-id",         # Your Bedrock guardrail ID
     guardrail_version="1",                    # Guardrail version
     guardrail_trace="enabled",                # Enable trace info for debugging
+    guardrail_latest_message=True,            # Only evaluate the latest user message
 )
 
 # Create agent with the guardrail-protected model
