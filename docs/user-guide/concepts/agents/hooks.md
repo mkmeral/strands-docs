@@ -130,6 +130,7 @@ The following diagram shows when hook events are emitted during a typical agent 
     Start --> Model
     Model <--> Tool
     Tool --> End
+    End -- "resume" --> Start
     ```
 
 === "TypeScript"
@@ -217,7 +218,7 @@ The following diagram shows when multi-agent hook events are emitted during orch
     |------------------------------------|---------------------------------------------------------------------------------------------------------------|
     | `AgentInitializedEvent`            | Triggered when an agent has been constructed and finished initialization at the end of the agent constructor. |
     | `BeforeInvocationEvent`            | Triggered at the beginning of a new agent invocation request                                                  |
-    | `AfterInvocationEvent`             | Triggered at the end of an agent request, regardless of success or failure. Uses reverse callback ordering    |
+    | `AfterInvocationEvent`             | Triggered at the end of an agent request, regardless of success or failure. Uses reverse callback ordering. Supports `resume` to re-invoke the agent with new input.    |
     | `MessageAddedEvent`                | Triggered when a message is added to the agent's conversation history                                         |
     | `BeforeModelCallEvent`             | Triggered before the model is invoked for inference                                                           |
     | `AfterModelCallEvent`              | Triggered after model invocation completes. Uses reverse callback ordering                                    |
@@ -260,6 +261,9 @@ Most event properties are read-only to prevent unintended modifications. However
 
 === "Python"
 
+    - [`AfterInvocationEvent`](../../../api-reference/python/hooks/events.md#strands.hooks.events.AfterInvocationEvent)
+        - `resume` - Re-invoke the agent with new input. See [Agent Resume](#agent-resume).
+
     - [`AfterModelCallEvent`](../../../api-reference/python/hooks/events.md#strands.hooks.events.AfterModelCallEvent)
         - `retry` - Request a retry of the model invocation. See [Model Call Retry](#model-call-retry).
 
@@ -283,6 +287,38 @@ Most event properties are read-only to prevent unintended modifications. However
 ### Callback Ordering
 
 Some events come in pairs, such as Before/After events. The After event callbacks are always called in reverse order from the Before event callbacks to ensure proper cleanup semantics.
+
+## Agent Resume
+
+The `AfterInvocationEvent` supports a `resume` attribute that enables hooks to automatically re-invoke the agent with new input. This is useful for implementing autonomous loops where the agent iterates until some condition is met.
+
+When a hook sets `resume` to any valid agent input (string, content blocks, or interrupt responses), the agent starts a new invocation cycle with that input. All hooks participate in every iteration — `BeforeInvocationEvent` fires again, the full event loop runs, and `AfterInvocationEvent` fires at the end. When `resume` is `None` (the default), the agent returns normally.
+
+=== "Python"
+
+    ```python
+    from strands import Agent
+    from strands.hooks.events import AfterInvocationEvent
+    import subprocess
+
+    async def validate_code(event: AfterInvocationEvent):
+        """Run tests after each agent response and resume if they fail."""
+        result = subprocess.run(["hatch", "run", "prepare"], capture_output=True, text=True)
+        if result.returncode != 0:
+            event.resume = f"Tests/linting failed. Fix these errors:\n{result.stdout}\n{result.stderr}"
+
+    agent = Agent()
+    agent.hooks.add_callback(AfterInvocationEvent, validate_code)
+    agent("implement a fibonacci function in utils.py")
+    ```
+
+{{ ts_not_supported_code("This feature is not yet available in TypeScript SDK") }}
+
+!!! note "Resume and interrupts"
+    When the agent is in an interrupt state, `resume` must contain valid interrupt responses (a list of `interruptResponse` dicts). Passing a plain string while an interrupt is active will raise `TypeError`. See the [Automatic Interrupt Handling](#automatic-interrupt-handling) cookbook entry for an example.
+
+!!! warning "Infinite loops"
+    There is no built-in limit on resume iterations. Always include a termination condition in your hook to prevent infinite loops — for example, a counter, a timeout, or a success check.
 
 ## Advanced Usage
 
@@ -786,3 +822,84 @@ For example, to retry failed tool calls once:
     ```
 
 {{ ts_not_supported_code("This feature is not yet available in TypeScript SDK") }}
+
+### Code Quality Loop
+
+Useful for coding agents that need to produce working code. This hook runs tests and linting after each agent response and resumes with the error output until all checks pass.
+
+=== "Python"
+
+    ```python
+    from strands import Agent
+    from strands.hooks import HookProvider, HookRegistry
+    from strands.hooks.events import BeforeInvocationEvent, AfterInvocationEvent
+    import subprocess
+
+    class CodeQualityLoop(HookProvider):
+        """Resume the agent until tests and linting pass."""
+
+        def __init__(self, command: list[str], max_retries: int = 3):
+            self.command = command
+            self.max_retries = max_retries
+            self.attempt = 0
+
+        def register_hooks(self, registry: HookRegistry) -> None:
+            registry.add_callback(BeforeInvocationEvent, self.reset)
+            registry.add_callback(AfterInvocationEvent, self.check)
+
+        def reset(self, event: BeforeInvocationEvent) -> None:
+            self.attempt = 0
+
+        async def check(self, event: AfterInvocationEvent) -> None:
+            if self.attempt >= self.max_retries:
+                return
+            result = subprocess.run(self.command, capture_output=True, text=True)
+            if result.returncode != 0:
+                self.attempt += 1
+                event.resume = f"Checks failed (attempt {self.attempt}/{self.max_retries}):\n{result.stdout}\n{result.stderr}"
+    ```
+
+{{ ts_not_supported_code("This feature is not yet available in TypeScript SDK") }}
+
+For example, to run `hatch run prepare` after each response with up to 3 retries:
+
+=== "Python"
+
+    ```python
+    quality_hook = CodeQualityLoop(command=["hatch", "run", "prepare"], max_retries=3)
+    agent = Agent(hooks=[quality_hook])
+    agent("implement a fibonacci function in utils.py")
+    ```
+
+{{ ts_not_supported_code("This feature is not yet available in TypeScript SDK") }}
+
+### Automatic Interrupt Handling
+
+Useful for automating interrupt approvals in trusted environments. This hook inspects the agent result after each invocation and, if the agent was interrupted, automatically resumes with approval responses.
+
+=== "Python"
+
+    ```python
+    from strands.hooks.events import AfterInvocationEvent
+
+    async def auto_approve_interrupts(event: AfterInvocationEvent):
+        """Automatically approve all interrupts and resume the agent."""
+        if event.result and event.result.stop_reason == "interrupt":
+            responses = []
+            for interrupt in event.result.interrupts:
+                responses.append({
+                    "interruptResponse": {
+                        "interruptId": interrupt.id,
+                        "response": "approved",
+                    }
+                })
+            event.resume = responses
+    
+    agent = Agent(tools=[my_tool])
+    agent.hooks.add_callback(AfterInvocationEvent, auto_approve_interrupts)
+    ```
+
+{{ ts_not_supported_code("This feature is not yet available in TypeScript SDK") }}
+
+!!! warning "Security consideration"
+    Auto-approving all interrupts bypasses safety checks. In production, validate each interrupt before approving — check the interrupt name, inspect the tool parameters, or apply policy rules.
