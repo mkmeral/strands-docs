@@ -95,6 +95,7 @@ sidebar:
               - docs/user-guide/concepts/streaming
               - docs/user-guide/concepts/streaming/async-iterators
               - docs/user-guide/concepts/streaming/callback-handlers
+              - docs/user-guide/concepts/streaming/event-reference
           - label: Multi-agent
             items:
               - docs/user-guide/concepts/multi-agent/agent-to-agent
